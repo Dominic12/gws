@@ -862,7 +862,22 @@ public class JednostkaWs
       	return null;  
 // TODO zaimplementowac ponizszy case
       case 11://ZNISZCZENIE
-      	return null;
+    	  try
+    	  {
+              Class.forName(driver).newInstance();
+              con = DriverManager.getConnection(url, username, password);
+              Statement s = con.createStatement();
+          
+              s.executeUpdate("update sc_jednostki set " +
+                  "czy_dziala = 'n' " +
+                  "where id = '"+ z.getIdJednostki()+ "'");
+              return null;
+          }
+          catch(Exception e)
+          {
+                   
+          }
+          break;
       default:
         
         return null;
