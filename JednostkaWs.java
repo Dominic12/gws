@@ -5,16 +5,15 @@ import org.apache.log4j.PropertyConfigurator;
 
 import com.I3B1S0.path.common.DirectionXY;
 import com.I3B1S0.path.pathfinder.*;
+import com.I3B1S0.model.droga.*;
 
-import java.sql.Connection;
+//import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.List;
 
 import sterowanie.Zdarzenie;
-import model.teren.Kwadrat;
-import model.teren.Teren_ZL;
 
 
 public class JednostkaWs
@@ -24,7 +23,7 @@ public class JednostkaWs
     private static String driver = "com.mysql.jdbc.Driver";
     private static String url = "jdbc:mysql://localhost:3306/SCENA";
     private static String username = "root";
-    private static String password = "123";
+    private static String password = "";
     private static java.sql.Connection con = null;
     private static String polozenieBeginning;
     private static String polozenie1;
@@ -64,11 +63,34 @@ public class JednostkaWs
       
        //druga tabela - nasza aktualna pozycja (tak na wszelki wypadek)
        s.executeUpdate("Create table if not exists sc_nasza_poprz_poz( " +
-    		   "id_jednostki varchar(10) not null, " +
-    		   "strona_konf varchar(20) not null, " +
-    		   "pozX_jedn int(10) not null, " +
-    		   "pozY_jedn int(10) not null, " +
-	   		   "PRIMARY KEY(id_jednostki)) ");
+    	         "id_jednostki varchar(10) not null, " +
+    	         "strona_konf varchar(20) not null, " +
+    	         "pozX_jedn int(10) not null, " +
+    	         "pozY_jedn int(10) not null, " +
+    	         "punkt_docelX int(10) not null, " +
+    	         "punkt_docelY int(10) not null, " +
+    	         "PRIMARY KEY(id_jednostki)) ");
+       
+       //trzecia tabela - punkty do zbadania, punkty wzdluz ktorych chodzimy i numer kroku
+       s.executeUpdate("Create table if not exists sc_obszar_do_rozp( " +
+    	         "id_jednostki varchar(10) not null, " +
+    	         "strona_konf varchar(20) not null, " +
+    	         "LDX int(10) not null, " +
+    	         "LDY int(10) not null, " +
+    	         "PDX int(10) not null, " +
+    	         "PDY int(10) not null, " +
+    	         "LGX int(10) not null, " +
+    	         "LGY int(10) not null, " +
+    	         "PGX int(10) not null, " +
+    	         "PGY int(10) not null, " +
+    	         "LRX int(10) not null, " +
+    	         "LRY int(10) not null, " +
+    	         "PRX int(10) not null, " +
+    	         "PRY int(10) not null, " +
+    	         "numer_kroku int(10) not null, " +
+    	         "numer_kroku_max int(10) not null, " +
+    	         "kierunek int(1) not null, " +
+    	         "PRIMARY KEY(id_jednostki)) ");
        
        ResultSet rs = s.executeQuery("select * from SC_SCENARIUSZE S, SC_JEDNOSTKI J " +
                "where S.NUMER = '" + z.getIdScenariusza()  + "'  " +
@@ -144,15 +166,9 @@ public class JednostkaWs
        pol4X = Teren_ZL.getIdKwX(geoPol4X);
        pol4Y = Teren_ZL.getIdKwY(geoPol4Y);
        
-       System.out.println("z " + polBX + " " + polBY + " " + pol4X + " " + pol4Y);
-       List<DirectionXY> path = null;
-       try{
-    	   path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol1X, pol1Y);
-       }
-       catch(Exception ex)
-       {
-    	   ex.printStackTrace();
-       }
+       
+       List<DirectionXY> path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol1X, pol1Y);
+       
        int[] pathSize = new int[4];
        if(path == null)
           pathSize[0] = 0;
@@ -197,67 +213,467 @@ public class JednostkaWs
 	   //polozenie startowe jednostki w tym przypadku to ustawienie poczatkowe jednostki
 	   event.setPolozenieStartoweJednostkiX(polBX);
 	   event.setPolozenieStartoweJednostkiY(polBY);
-	   DirectionXY dirXY = null;
 	   
-       if(czyKwadrat)
-       {
-    	   //sprawdzamy, wspolrzedna y ktorego z punktow jest taka sama jak wspolrzedna y
-    	   //punktu w ktorym stoimy. Jak sie tego dowiemy, to idziemy w tamtym kierunku
-    	   if(polBY == pol1Y && min != 0)
-    		   dirXY = PathFinder.getInstance().returnNextStep(polBX, polBY, pol1X, pol1Y);
+	   
+	   int endPointX = 0;
+	   int endPointY = 0;
+	    
+	   if(czyKwadrat)
+	   {
+	        //sprawdzamy, wspolrzedna y ktorego z punktow jest taka sama jak wspolrzedna y
+	        //punktu w ktorym stoimy. Jak sie tego dowiemy, to idziemy w tamtym kierunku
+	        if(polBY == pol1Y && min != 0)
+	        {
+	         path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol1X, pol1Y);
+	         endPointX = pol1X;
+	         endPointY = pol1Y;
+	        }
 
-    	   if(polBY == pol2Y && min != 1)
-    		   dirXY = PathFinder.getInstance().returnNextStep(polBX, polBY, pol2X, pol2Y);
-    	   
-    	   if(polBY == pol3Y && min != 2)
-    		   dirXY = PathFinder.getInstance().returnNextStep(polBX, polBY, pol3X, pol3Y);
-    	   
-    	   if(polBY == pol4Y && min != 3)
-    	       dirXY = PathFinder.getInstance().returnNextStep(polBX, polBY, pol4X, pol4Y);
-    	   
-       }
-       else
-       {
-    	   //sprawdzamy do ktorego punktu mamy najblizej i wykonujemy krok w tamtym kierunku
-    	   switch(min)
-    	   {
-    	       case 0:
-    	    	   dirXY = PathFinder.getInstance().returnNextStep(polBX, polBY, pol1X, pol1Y);
-    	    	   break;
-    	       case 1:
-    	    	   dirXY = PathFinder.getInstance().returnNextStep(polBX, polBY, pol2X, pol2Y);
-    	    	   break;
-    	       case 2:
-    	    	   dirXY = PathFinder.getInstance().returnNextStep(polBX, polBY, pol3X, pol3Y);
-    	    	   break;
-    	       case 3:
-        	       dirXY = PathFinder.getInstance().returnNextStep(polBX, polBY, pol4X, pol4Y);
-        	       break;
-        	   default:
-        		   break;
-    	   }
-       }
-       
-       event.setPunktDocelowyPrzemieszczeniaX(dirXY.getX());
-	   event.setPunktDocelowyPrzemieszczeniaY(dirXY.getY());
+	        if(polBY == pol2Y && min != 1)
+	        {
+	         path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol2X, pol2Y);
+	         endPointX = pol2X;
+	         endPointY = pol2Y;
+	        }
+	        
+	        if(polBY == pol3Y && min != 2)
+	        {
+	         path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol3X, pol3Y);
+	         endPointX = pol3X;
+	         endPointY = pol3Y;
+	        }
+	        
+	        if(polBY == pol4Y && min != 3)
+	        {
+	         path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol4X, pol4Y);
+	         endPointX = pol4X;
+	         endPointY = pol4Y;
+	        }
+	        
+	       }
+	    else
+	    {
+	        //sprawdzamy do ktorego punktu mamy najblizej i wykonujemy krok w tamtym kierunku
+	        switch(min)
+	        {
+	            case 0:
+	             path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol1X, pol1Y);
+	             endPointX = pol1X;
+	             endPointY = pol1Y;
+	             break;
+	            case 1:
+	             path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol2X, pol2Y);
+	             endPointX = pol2X;
+	             endPointY = pol2Y;
+	             break;
+	            case 2:
+	             path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol3X, pol3Y);
+	             endPointX = pol3X;
+	             endPointY = pol3Y;
+	             break;
+	            case 3:
+	             path = PathFinder.getInstance().returnWholePath(polBX, polBY, pol4X, pol4Y);
+	             endPointX = pol4X;
+	             endPointY = pol4Y;
+	                break;
+	            default:
+	             break;
+	        }
+	    }
+	       
+        event.setPunktDocelowyPrzemieszczeniaX(path.get(1).getX());
+	    event.setPunktDocelowyPrzemieszczeniaY(path.get(1).getY());
+	    
+	  //sprawdzimy, ktory z punktow jest rownolegly do punktu najblizszego od nas
+	    //dodatkowo sprawdzamy rozlozenie punktow obszaru do rozpoznania
+	    int[] X = {pol1X, pol2X, pol3X, pol4X};
+	    int[] Y = {pol1Y, pol2Y, pol3Y, pol4Y};
+	    
+	    int minX = porownanie(X, false);
+	    int minY = porownanie(Y, false);
+	    int maxX = porownanie(X, true);
+	    int maxY = porownanie(Y, true);
+	    int[] kwadrat = new int[8];
+	    
+	    if(pol1X == minX && pol1Y == minY)
+	    {
+	     kwadrat[0] = pol1X;
+	     kwadrat[1] = pol1Y;
+	    }
+	    if(pol1X == minX && pol1Y == maxY)
+	    {
+	     kwadrat[4] = pol1X;
+	     kwadrat[5] = pol1Y;
+	    }
+	    if(pol1X == maxX && pol1Y == minY)
+	    {
+	     kwadrat[2] = pol1X;
+	     kwadrat[3] = pol1Y;
+	    }
+	    if(pol1X == maxX && pol1Y == maxY)
+	    {
+	     kwadrat[6] = pol1X;
+	     kwadrat[7] = pol1Y;
+	    }
+	    if(pol2X == minX && pol2Y == minY)
+	    {
+	     kwadrat[0] = pol2X;
+	     kwadrat[1] = pol2Y;
+	    }
+	    if(pol2X == minX && pol2Y == maxY)
+	    {
+	     kwadrat[4] = pol2X;
+	     kwadrat[5] = pol2Y;
+	    }
+	    if(pol2X == maxX && pol2Y == minY)
+	    {
+	     kwadrat[2] = pol2X;
+	     kwadrat[3] = pol2Y;
+	    }
+	    if(pol2X == maxX && pol2Y == maxY)
+	    {
+	     kwadrat[6] = pol2X;
+	     kwadrat[7] = pol2Y;
+	    }
+	    if(pol3X == minX && pol3Y == minY)
+	    {
+	     kwadrat[0] = pol3X;
+	     kwadrat[1] = pol3Y;
+	    }
+	    if(pol3X == minX && pol3Y == maxY)
+	    {
+	     kwadrat[4] = pol3X;
+	     kwadrat[5] = pol3Y;
+	    }
+	    if(pol3X == maxX && pol3Y == minY)
+	    {
+	     kwadrat[2] = pol3X;
+	     kwadrat[3] = pol3Y;
+	    }
+	    if(pol3X == maxX && pol3Y == maxY)
+	    {
+	     kwadrat[6] = pol3X;
+	     kwadrat[7] = pol3Y;
+	    }
+	    if(pol4X == minX && pol4Y == minY)
+	    {
+	     kwadrat[0] = pol4X;
+	     kwadrat[1] = pol4Y;
+	    }
+	    if(pol4X == minX && pol4Y == maxY)
+	    {
+	     kwadrat[4] = pol4X;
+	     kwadrat[5] = pol4Y;
+	    }
+	    if(pol4X == maxX && pol4Y == minY)
+	    {
+	     kwadrat[2] = pol4X;
+	     kwadrat[3] = pol4Y;
+	    }
+	    if(pol4X == maxX && pol4Y == maxY)
+	    {
+	     kwadrat[6] = pol4X;
+	     kwadrat[7] = pol4Y;
+	    }
+	    
+	       //sprawdzamy punkty rownolegle
+	    int lewyX = 0;
+	    int lewyY = 0;
+	    int prawyX = 0;
+	    int prawyY = 0;
+	    switch(min)
+	    {
+	        case 0:
+	         if(pol1Y == pol2Y)
+	         {
+	          if(pol1X > pol2X)
+	          {
+	           lewyX = pol2X;
+	           lewyY = pol2Y;
+	           prawyX = pol1X;
+	           prawyY = pol1Y;
+	          }
+	          else
+	          {
+	           lewyX = pol1X;
+	           lewyY = pol1Y;
+	           prawyX = pol2X;
+	           prawyY = pol2Y;
+	          }
+	         }
+	         if(pol1Y == pol3Y)
+	         {
+	          if(pol1X > pol3X)
+	          {
+	           lewyX = pol3X;
+	           lewyY = pol3Y;
+	           prawyX = pol1X;
+	           prawyY = pol1Y;
+	          }
+	          else
+	          {
+	           lewyX = pol1X;
+	           lewyY = pol1Y;
+	           prawyX = pol3X;
+	           prawyY = pol3Y;
+	          }
+	         }
+	         if(pol1Y == pol4Y)
+	         {
+	          if(pol1X > pol4X)
+	          {
+	           lewyX = pol4X;
+	           lewyY = pol4Y;
+	           prawyX = pol1X;
+	           prawyY = pol1Y;
+	          }
+	          else
+	          {
+	           lewyX = pol1X;
+	           lewyY = pol1Y;
+	           prawyX = pol4X;
+	           prawyY = pol4Y;
+	          }
+	         }
+	         break;
+	        case 1:
+	         if(pol2Y == pol1Y)
+	         {
+	          if(pol2X > pol1X)
+	          {
+	           lewyX = pol1X;
+	           lewyY = pol1Y;
+	           prawyX = pol2X;
+	           prawyY = pol2Y;
+	          }
+	          else
+	          {
+	           lewyX = pol2X;
+	           lewyY = pol2Y;
+	           prawyX = pol1X;
+	           prawyY = pol1Y;
+	          }
+	         }
+	         if(pol2Y == pol3Y)
+	         {
+	          if(pol2X > pol3X)
+	          {
+	           lewyX = pol3X;
+	           lewyY = pol3Y;
+	           prawyX = pol2X;
+	           prawyY = pol2Y;
+	          }
+	          else
+	          {
+	           lewyX = pol2X;
+	           lewyY = pol2Y;
+	           prawyX = pol3X;
+	           prawyY = pol3Y;
+	          }
+	         }
+	         if(pol2Y == pol4Y)
+	         {
+	          if(pol2X > pol4X)
+	          {
+	           lewyX = pol4X;
+	           lewyY = pol4Y;
+	           prawyX = pol2X;
+	           prawyY = pol2Y;
+	          }
+	          else
+	          {
+	           lewyX = pol2X;
+	           lewyY = pol2Y;
+	           prawyX = pol4X;
+	           prawyY = pol4Y;
+	          }
+	         }
+	         break;
+	        case 2:
+	         if(pol3Y == pol1Y)
+	         {
+	          if(pol3X > pol1X)
+	          {
+	           lewyX = pol1X;
+	           lewyY = pol1Y;
+	           prawyX = pol3X;
+	           prawyY = pol3Y;
+	          }
+	          else
+	          {
+	           lewyX = pol3X;
+	           lewyY = pol3Y;
+	           prawyX = pol1X;
+	           prawyY = pol1Y;
+	          }
+	         }
+	         if(pol3Y == pol2Y)
+	         {
+	          if(pol3X > pol2X)
+	          {
+	           lewyX = pol2X;
+	           lewyY = pol2Y;
+	           prawyX = pol3X;
+	           prawyY = pol3Y;
+	          }
+	          else
+	          {
+	           lewyX = pol3X;
+	           lewyY = pol3Y;
+	           prawyX = pol2X;
+	           prawyY = pol2Y;
+	          }
+	         }
+	         if(pol3Y == pol4Y)
+	         {
+	          if(pol3X > pol4X)
+	          {
+	           lewyX = pol4X;
+	           lewyY = pol4Y;
+	           prawyX = pol3X;
+	           prawyY = pol3Y;
+	          }
+	          else
+	          {
+	           lewyX = pol3X;
+	           lewyY = pol3Y;
+	           prawyX = pol4X;
+	           prawyY = pol4Y;
+	          }
+	         }
+	         break;
+	        case 3:
+	         if(pol4Y == pol1Y)
+	         {
+	          if(pol4X > pol1X)
+	          {
+	           lewyX = pol1X;
+	           lewyY = pol1Y;
+	           prawyX = pol4X;
+	           prawyY = pol4Y;
+	          }
+	          else
+	          {
+	           lewyX = pol4X;
+	           lewyY = pol4Y;
+	           prawyX = pol1X;
+	           prawyY = pol1Y;
+	          }
+	         }
+	         if(pol4Y == pol2Y)
+	         {
+	          if(pol4X > pol2X)
+	          {
+	           lewyX = pol2X;
+	           lewyY = pol2Y;
+	           prawyX = pol4X;
+	           prawyY = pol4Y;
+	          }
+	          else
+	          {
+	           lewyX = pol4X;
+	           lewyY = pol4Y;
+	           prawyX = pol2X;
+	           prawyY = pol2Y;
+	          }
+	         }
+	         if(pol4Y == pol3Y)
+	         {
+	          if(pol4X > pol3X)
+	          {
+	           lewyX = pol3X;
+	           lewyY = pol3Y;
+	           prawyX = pol4X;
+	           prawyY = pol4Y;
+	          }
+	          else
+	          {
+	           lewyX = pol4X;
+	           lewyY = pol4Y;
+	           prawyX = pol3X;
+	           prawyY = pol3Y;
+	          }
+	         }
+	         break;
+	        default:
+	         break;
+	    }
+	    
+	    //sprawdzamy, czy idziemy w dol, czy w gore
+	    int kierunek = -1;
+	    if(polBY > lewyY)
+	    {
+	     kierunek = 2;
+	    }
+	    else
+	    {
+	     kierunek = 1;
+	    }
+	    
+	    //teraz wstawiamy informacje o kwadracie do rozpoznania do bazy danych
+	    int dlugosc = prawyX - lewyX;
+	    
+	    s.executeUpdate("insert into sc_obszar_do_rozp set " +
+	               "id_jednostki = '" + z.getIdJednostki() + "', " +
+	               "strona_konf = '" + z.getIdStronyKonfliktu() + "', " +
+	               "LDX = " + kwadrat[0] + ", " +
+	         "LDY = " + kwadrat[1] + ", " +
+	         "PDX = " + kwadrat[2] + ", " +
+	         "PDY = " + kwadrat[3] + ", " +
+	         "LGX = " + kwadrat[4] + ", " +
+	         "LGY = " + kwadrat[5] + ", " +
+	         "PGX = " + kwadrat[6] + ", " +
+	         "PGY = " + kwadrat[7] + ", " +
+	         "LRX = " + lewyX + ", " +
+	         "LRY = " + lewyY + ", " +
+	         "PRX = " + prawyX + ", " +
+	         "PRY = " + prawyY + ", " +
+	         "numer_kroku = 0, " + 
+	         "numer_kroku_max = " + dlugosc + ", " +
+	         "kierunek = " + kierunek + " ON DUPLICATE KEY UPDATE " +
+	         "LDX = " + kwadrat[0] + ", " +
+	         "LDY = " + kwadrat[1] + ", " +
+	         "PDX = " + kwadrat[2] + ", " +
+	         "PDY = " + kwadrat[3] + ", " +
+	         "LGX = " + kwadrat[4] + ", " +
+	         "LGY = " + kwadrat[5] + ", " +
+	         "PGX = " + kwadrat[6] + ", " +
+	         "PGY = " + kwadrat[7] + ", " +
+	         "LRX = " + lewyX + ", " +
+	         "LRY = " + lewyY + ", " +
+	         "PRX = " + prawyX + ", " +
+	         "PRY = " + prawyY + ", " +
+	         "numer_kroku = 0, " + 
+	         "numer_kroku_max = " + dlugosc + ", " +
+	         "kierunek = " + kierunek );
+	    
+	    System.out.println("Jestem w kwadracie: " + polBX + "; " + polBY);
+	    System.out.println("Przechodzê do kwadratu: " + path.get(1).getX() + "; " + path.get(1).getY());
+	    
+	    //zapisujemy pozycje do ktorej sie udajemy jako aktualna nasza pozycje
+	    s.executeUpdate("insert into sc_nasza_poprz_poz set " +
+	               "id_jednostki = '" + z.getIdJednostki() + "', " +
+	               "strona_konf = '" + z.getIdStronyKonfliktu() + "', " +
+	               "pozX_jedn = '" + polBX + "', " +
+	               "pozY_jedn = '" + polBX + "', " +
+	               "punkt_docelX = '" + endPointX + "', " +
+	               "punkt_docelY = '" + endPointY + "' ON DUPLICATE KEY UPDATE " +
+	               "pozX_jedn = '" + polBX + "', " +
+	               "pozY_jedn = '" + polBX + "', " +
+	               "punkt_docelX = '" + endPointX + "', " +
+	               "punkt_docelY = '" + endPointY + "'" );
+	    
+	       con.close();
+	       return new Zdarzenie[] {event};
+	   }
+	   catch(Exception e)
+	   {
+	     System.out.println(e.getMessage());
+	   }
 	   
-	   //zapisujemy pozycje do ktorej sie udajemy jako aktualna nasza pozycje
-	   s.executeUpdate("insert into sc_nasza_poprz_poz values(" +
-			   "'" + z.getIdJednostki() + "', '" + z.getIdStronyKonfliktu() + "', " +
-			   polBX + ", " + polBY + ")");
-	   
-       con.close();
-       
-       return new Zdarzenie[] {event};
-   }
-   catch(Exception e)
-   {
-     System.out.println(e.getMessage());
-   }
-   
-   //jesli wszystko bedzie ok, to ten return nigdy sie nie wykona
-   return null;
- }
+	   //jesli wszystko bedzie ok, to ten return nigdy sie nie wykona
+	   return null;
+  }
  
   public Zdarzenie[] krok(Zdarzenie z)
   {
@@ -265,20 +681,119 @@ public class JednostkaWs
     {
       case 1://PRZEMIESZCZENIE_STOP
         try{
+          int endPointX = 0;
+          int endPointY = 0;
+          int nowPointX = 1;
+          int nowPointY = 1;
+        	
           Class.forName(driver).newInstance();
           con = DriverManager.getConnection(url, username, password);
           Statement s = con.createStatement();
+          
+          ResultSet rs = s.executeQuery("select * from sc_nasza_poprz_poz z" +
+                  " where z.id_jednostki = '" + z.getIdJednostki()  + "'  " +
+                  " and z.strona_konf = '" + z.getIdStronyKonfliktu()+ "' ");
+         
+          if (rs.next()) {
+        	  endPointX = rs.getInt("punkt_docelX");
+        	  endPointY = rs.getInt("punkt_docelY");
+        	  nowPointX = rs.getInt("pozX_jedn");
+        	  nowPointY = rs.getInt("pozY_jedn");
+          }
+          if(endPointX == nowPointX && endPointY == nowPointY){
+        	  /*Doszlismy gdzie chcielismy*/
+        	  rs = s.executeQuery("select * from sc_obszar_do_rozp z" +
+                      " where z.id_jednostki = '" + z.getIdJednostki()  + "'  " +
+                      " and z.strona_konf = '" + z.getIdStronyKonfliktu()+ "' ");
+        	  if (rs.next()) {
+            	  int kierunek = rs.getInt("kierunek");
+            	  int nKroku;
+            	  if(kierunek == 1){
+            		  /*Idziemy do góry*/
+	        		  nKroku = rs.getInt("numer_kroku");
+	            	  int nKrokuMax = rs.getInt("numer_kroku_max");
+	            	  /*Przeszli¶my wszystko, nigdzie nie idziemy dalej*/
+	            	  if(nKroku == nKrokuMax)
+	            		  return null;	
+	        		  int pointLX = rs.getInt("LRX");
+	            	  int pointLY = rs.getInt("LRY") + nKroku;
+	            	  int pointPX = rs.getInt("PRX");
+	            	  int pointPY = rs.getInt("PRY") + nKroku;
+	            	  if(pointLX == endPointX &&  pointLY == endPointY){
+	            		  /*Jestesmy w lewym dolnym przesuniêtym*/
+	                	  int pointPDX = rs.getInt("PDX");
+	                	  int pointPDY = rs.getInt("LDY") + nKroku;
+	            		  nKroku++;
+	                	  endPointX = pointPDX;            		  
+	            		  endPointY = pointPDY + nKroku;
+	            	  }
+	            	  else if(pointPX == endPointX &&  pointPY == endPointY){
+	            		  /*Jestesmy w prawym dolnym przesunietym*/
+	            		  int pointLDX = rs.getInt("LDX");
+	                	  int pointLDY = rs.getInt("PDY") + nKroku;
+	                	  nKroku++;
+	            		  endPointX = pointLDX;
+	            		  endPointY = pointLDY + nKroku;
+	            	  }	            	  
+            	  }
+            	  else{
+            		  /*Idziemy w dol*/
+            		  nKroku = rs.getInt("numer_kroku");
+	            	  int nKrokuMax = rs.getInt("numer_kroku_max");
+	            	  /*Przeszli¶my wszystko, nigdzie nie idziemy dalej*/
+	            	  if(nKroku == nKrokuMax)
+	            		  return null;	
+	        		  int pointLX = rs.getInt("LRX");
+	            	  int pointLY = rs.getInt("LRY") - nKroku;
+	            	  int pointPX = rs.getInt("PRX");
+	            	  int pointPY = rs.getInt("PRY") - nKroku;
+	            	  if(pointLX == endPointX &&  pointLY == endPointY){
+	            		  /*Jestesmy w lewym dolnym przesuniêtym*/
+	                	  int pointPDX = rs.getInt("PGX");
+	                	  int pointPDY = rs.getInt("LGY") - nKroku;
+	            		  nKroku++;
+	                	  endPointX = pointPDX;            		  
+	            		  endPointY = pointPDY - nKroku;
+	            	  }
+	            	  else if(pointPX == endPointX &&  pointPY == endPointY){
+	            		  /*Jestesmy w prawym dolnym przesunietym*/
+	            		  int pointLDX = rs.getInt("LGX");
+	                	  int pointLDY = rs.getInt("PGY") - nKroku;
+	                	  nKroku++;
+	            		  endPointX = pointLDX;
+	            		  endPointY = pointLDY - nKroku;
+	            	  }            		  
+            	  }
+            	  List<DirectionXY> path = PathFinder.getInstance().returnWholePath(nowPointX, nowPointY, endPointX, endPointY);
+            	  z.setPunktDocelowyPrzemieszczeniaX(path.get(1).getX());
+          	      z.setPunktDocelowyPrzemieszczeniaY(path.get(1).getY());
+          	      z.setTypZdarzenia(0);	  
+          	      
+          	      s.executeUpdate("update  sc_obszar_do_rozp set numer_kroku= " +nKroku+
+          	    	  " where z.id_jednostki = '" + z.getIdJednostki()  + "'  " +
+                      " and z.strona_konf = '" + z.getIdStronyKonfliktu()+ "' ");
+              }        	  
+          }
+          else{
+        	  List<DirectionXY> path = PathFinder.getInstance().returnWholePath(nowPointX, nowPointY, endPointX, endPointY);
+        	  z.setPunktDocelowyPrzemieszczeniaX(path.get(1).getX());
+      	      z.setPunktDocelowyPrzemieszczeniaY(path.get(1).getY());
+      	      z.setTypZdarzenia(0);
+          }
           s.executeUpdate("insert into sc_nasza_poprz_poz set " +
                   "id_jednostki = '"+z.getIdJednostki()+"', " +
                   "strona_konf = '"+z.getIdStronyKonfliktu()+"', " +
                   "pozX_jedn = '"+z.getPolozenieStartoweJednostkiX()+"', " +
-                  "pozY_jedn = '"+z.getPolozenieStartoweJednostkiY()+"' ON DUPLICATE KEY UPDATE " +
+                  "pozY_jedn = '"+z.getPolozenieStartoweJednostkiY()+"', " +
+                  "punkt_docelX = '" + endPointX + "', " +
+	              "punkt_docelY = '" + endPointY + "' ON DUPLICATE KEY UPDATE " +
                   "pozX_jedn = '"+z.getPolozenieStartoweJednostkiX()+"', " +
-                  "pozY_jedn = '"+z.getPolozenieStartoweJednostkiY()+"'" );
+                  "pozY_jedn = '"+z.getPolozenieStartoweJednostkiY()+"', " +
+                  "punkt_docelX = '" + endPointX + "', " +
+	              "punkt_docelY = '" + endPointY + "'");
           
-                 
           con.close();
-          return null;
+          return new Zdarzenie[] {z};
         }
         catch(Exception e)
         {
@@ -322,9 +837,7 @@ public class JednostkaWs
             z.setPunktDocelowyPrzemieszczeniaY(prevY);
             z.setTypZdarzenia(0);
             con.close();
-            Zdarzenie[] zd = new Zdarzenie[1];
-            zd[0] = z;
-            return zd;
+            //return new Zdarzenie[] {z};
           }
           return null;
         }
@@ -338,6 +851,31 @@ public class JednostkaWs
         return null;
     }       
     return null;
+  }
+  public int porownanie(int[] tab, boolean b)
+  {
+   int i = 0;
+   //b = true - sprawdzanie czy wieksze, else czy mniejsze
+   if(b)
+   {
+    int max = tab[0];
+    for(i = 1; i < tab.length; i++)
+    {
+     if(max < tab[i])
+      max = tab[i];
+    }
+    return max;
+   }
+   else
+   {
+    int min = tab[0];
+    for(i = 1; i < tab.length; i++)
+    {
+     if(min > tab[i])
+      min = tab[i];
+    }
+    return min;
+   }
   }
 }
 
