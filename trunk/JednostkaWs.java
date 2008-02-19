@@ -847,7 +847,22 @@ public class JednostkaWs
         {
                  
         }
-        break; 
+        break;
+// TODO zaimplementowac ponizszy case
+      case 7://ODBIOR_DOSTAWY_START
+      	return null;
+// TODO zaimplementowac ponizszy case 
+      case 8://ODBIOR_DOSTAWY_STOP
+      	return null; 
+// TODO zaimplementowac ponizszy case
+      case 9://STRZAL_START
+      	return null; 
+// TODO zaimplementowac ponizszy case
+      case 10://STRZAL_STOP
+      	return null;  
+// TODO zaimplementowac ponizszy case
+      case 11://ZNISZCZENIE
+      	return null;
       default:
         
         return null;
