@@ -56,7 +56,7 @@ public class JednostkaWs
        
        //sprawdzamy, czy w bazie sa dwie pomocnicze tabele. Jesli nie, to je tworzymy
        //pierwsza z tabel - informacje o rozpoznanych jednostkach
-       s.executeUpdate("Create table if not exists sc_rozp_jednostki( " +
+       s.executeUpdate("Create table if not exists sc_rozp_jednostki_strzelanie( " +
     		   "id_jednostki varchar(10) not null, " +
     		   "strona_konf varchar(20) not null, " +
     		   "czy_strzelano varchar(20), " +
@@ -808,7 +808,7 @@ public class JednostkaWs
           con = DriverManager.getConnection(url, username, password);
           Statement s = con.createStatement();
           //dodajemy do bazy id rozpoznanej jednostki i jej id_strony
-          s.executeUpdate("insert into sc_rozp_jednostki set " +
+          s.executeUpdate("insert into sc_rozp_jednostki_strzelanie set " +
                           "id_jednostki = '"+ z.getIdJednostkiRozpoznanej()+"',"  +
                           "strona_konf = '"+ z.getIdStronyKonfliktuJednostkiRozpoznanej()+ "'");
           con.close();
