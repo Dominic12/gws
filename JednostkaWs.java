@@ -59,10 +59,12 @@ public class JednostkaWs
        s.executeUpdate("Create table if not exists sc_rozp_jednostki( " +
     		   "id_jednostki varchar(10) not null, " +
     		   "strona_konf varchar(20) not null, " +
+    		   "czy_strzelano varchar(20), " +
+    		   "data_ataku date, " +
     		   "PRIMARY KEY(id_jednostki)) "); 
       
        //druga tabela - nasza aktualna pozycja (tak na wszelki wypadek)
-       s.executeUpdate("Create table if not exists sc_nasza_poprz_poz( " +
+       s.executeUpdate("Create table if not exists sc_nasza_poprz_poz_strzelanie( " +
     	         "id_jednostki varchar(10) not null, " +
     	         "strona_konf varchar(20) not null, " +
     	         "pozX_jedn int(10) not null, " +
@@ -72,7 +74,7 @@ public class JednostkaWs
     	         "PRIMARY KEY(id_jednostki)) ");
        
        //trzecia tabela - punkty do zbadania, punkty wzdluz ktorych chodzimy i numer kroku
-       s.executeUpdate("Create table if not exists sc_obszar_do_rozp( " +
+       s.executeUpdate("Create table if not exists sc_obszar_do_odwiedzenia( " +
     	         "id_jednostki varchar(10) not null, " +
     	         "strona_konf varchar(20) not null, " +
     	         "LDX int(10) not null, " +
@@ -613,7 +615,7 @@ public class JednostkaWs
 	    //teraz wstawiamy informacje o kwadracie do rozpoznania do bazy danych
 	    int dlugosc = prawyX - lewyX;
 	    
-	    s.executeUpdate("insert into sc_obszar_do_rozp set " +
+	    s.executeUpdate("insert into sc_obszar_do_odwiedzenia set " +
 	               "id_jednostki = '" + z.getIdJednostki() + "', " +
 	               "strona_konf = '" + z.getIdStronyKonfliktu() + "', " +
 	               "LDX = " + kwadrat[0] + ", " +
@@ -651,7 +653,7 @@ public class JednostkaWs
 	    System.out.println("Przechodzê do kwadratu: " + path.get(1).getX() + "; " + path.get(1).getY());
 	    
 	    //zapisujemy pozycje do ktorej sie udajemy jako aktualna nasza pozycje
-	    s.executeUpdate("insert into sc_nasza_poprz_poz set " +
+	    s.executeUpdate("insert into sc_nasza_poprz_poz_strzelanie set " +
 	               "id_jednostki = '" + z.getIdJednostki() + "', " +
 	               "strona_konf = '" + z.getIdStronyKonfliktu() + "', " +
 	               "pozX_jedn = '" + polBX + "', " +
@@ -690,7 +692,7 @@ public class JednostkaWs
           con = DriverManager.getConnection(url, username, password);
           Statement s = con.createStatement();
           
-          ResultSet rs = s.executeQuery("select * from sc_nasza_poprz_poz z" +
+          ResultSet rs = s.executeQuery("select * from sc_nasza_poprz_poz_strzelanie z" +
                   " where z.id_jednostki = '" + z.getIdJednostki()  + "'  " +
                   " and z.strona_konf = '" + z.getIdStronyKonfliktu()+ "' ");
          
@@ -702,7 +704,7 @@ public class JednostkaWs
           }
           if(endPointX == nowPointX && endPointY == nowPointY){
         	  /*Doszlismy gdzie chcielismy*/
-        	  rs = s.executeQuery("select * from sc_obszar_do_rozp z" +
+        	  rs = s.executeQuery("select * from sc_obszar_do_odwiedzenia z" +
                       " where z.id_jednostki = '" + z.getIdJednostki()  + "'  " +
                       " and z.strona_konf = '" + z.getIdStronyKonfliktu()+ "' ");
         	  if (rs.next()) {
@@ -769,7 +771,7 @@ public class JednostkaWs
           	      z.setPunktDocelowyPrzemieszczeniaY(path.get(1).getY());
           	      z.setTypZdarzenia(0);	  
           	      
-          	      s.executeUpdate("update  sc_obszar_do_rozp set numer_kroku= " +nKroku+
+          	      s.executeUpdate("update  sc_obszar_do_odwiedzenia set numer_kroku= " +nKroku+
           	    	  " where z.id_jednostki = '" + z.getIdJednostki()  + "'  " +
                       " and z.strona_konf = '" + z.getIdStronyKonfliktu()+ "' ");
               }        	  
@@ -780,7 +782,7 @@ public class JednostkaWs
       	      z.setPunktDocelowyPrzemieszczeniaY(path.get(1).getY());
       	      z.setTypZdarzenia(0);
           }
-          s.executeUpdate("insert into sc_nasza_poprz_poz set " +
+          s.executeUpdate("insert into sc_nasza_poprz_poz_strzelanie set " +
                   "id_jednostki = '"+z.getIdJednostki()+"', " +
                   "strona_konf = '"+z.getIdStronyKonfliktu()+"', " +
                   "pozX_jedn = '"+z.getPolozenieStartoweJednostkiX()+"', " +
@@ -826,7 +828,7 @@ public class JednostkaWs
           con = DriverManager.getConnection(url, username, password);
           Statement s = con.createStatement();
             
-          ResultSet rs = s.executeQuery("select * from sc_nasza_poprz_poz S " +
+          ResultSet rs = s.executeQuery("select * from sc_nasza_poprz_poz_strzelanie S " +
                                         "where S.id_jednostki = '" + z.getIdJednostki()  + "'  " +
                                         "and S.strona_konf = '" + z.getIdStronyKonfliktu()  + "' " );
                  
