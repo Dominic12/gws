@@ -812,7 +812,8 @@ public class JednostkaWs
                           "id_jednostki = '"+ z.getIdJednostkiRozpoznanej()+"',"  +
                           "strona_konf = '"+ z.getIdStronyKonfliktuJednostkiRozpoznanej()+ "'");
           con.close();
-          return null;
+          z.setTypZdarzenia(9);
+          return new Zdarzenie[] {z};
         }
         catch(Exception e)
         {
@@ -856,10 +857,11 @@ public class JednostkaWs
       	return null; 
 // TODO zaimplementowac ponizszy case
       case 9://STRZAL_START
-      	return null; 
+    	  
+      	return null;
 // TODO zaimplementowac ponizszy case
       case 10://STRZAL_STOP
-      	return null;  
+      	return null; 
 // TODO zaimplementowac ponizszy case
       case 11://ZNISZCZENIE
     	  try
