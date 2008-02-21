@@ -1,19 +1,19 @@
 package jednostki;
 
-import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
-
-import com.I3B1S0.path.common.DirectionXY;
-import com.I3B1S0.path.pathfinder.*;
-import com.I3B1S0.model.droga.*;
-
-//import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.List;
 
+import org.apache.log4j.Logger;
+import org.apache.log4j.PropertyConfigurator;
+
 import sterowanie.Zdarzenie;
+import sterowanie.pomocnicze.Zaopatrzenie;
+
+import com.I3B1S0.model.droga.Teren_ZL;
+import com.I3B1S0.path.common.DirectionXY;
+import com.I3B1S0.path.pathfinder.PathFinder;
 
 
 public class JednostkaWs
@@ -664,6 +664,12 @@ public class JednostkaWs
 	               "pozY_jedn = '" + polBX + "', " +
 	               "punkt_docelX = '" + endPointX + "', " +
 	               "punkt_docelY = '" + endPointY + "'" );
+
+	       s.executeUpdate("Create table if not exists sc_jednostki_widoczne( " +
+	               "id_jednostki int not null, " +
+	               "id_jednostki_widz int not null, " +
+	               "id_scena int not null, " +
+	               "PRIMARY KEY(id_jednostki,id_jednostki_widz,id_scena)) ");
 	    
 	       con.close();
 	       return new Zdarzenie[] {event};
@@ -809,8 +815,8 @@ public class JednostkaWs
           Statement s = con.createStatement();
           //dodajemy do bazy id rozpoznanej jednostki i jej id_strony
           s.executeUpdate("insert into sc_rozp_jednostki_strzelanie set " +
-                          "id_jednostki = '"+ z.getIdJednostkiRozpoznanej()+"',"  +
-                          "strona_konf = '"+ z.getIdStronyKonfliktuJednostkiRozpoznanej()+ "'");
+                  "id_jednostki = '"+ z.getIdJednostkiRozpoznanej()+"',"  +
+                  "strona_konf = '"+ z.getIdStronyKonfliktuJednostkiRozpoznanej()+ "'");
           con.close();
           z.setTypZdarzenia(9);
           return new Zdarzenie[] {z};
@@ -822,33 +828,66 @@ public class JednostkaWs
         break; 
              
       case 3://JEDNOSTKA_WIDOCZNA
-        try{
-          int prevX;
-          int prevY;
-          Class.forName(driver).newInstance();
-          con = DriverManager.getConnection(url, username, password);
-          Statement s = con.createStatement();
-            
-          ResultSet rs = s.executeQuery("select * from sc_nasza_poprz_poz_strzelanie S " +
-                                        "where S.id_jednostki = '" + z.getIdJednostki()  + "'  " +
-                                        "and S.strona_konf = '" + z.getIdStronyKonfliktu()  + "' " );
-                 
-          if (rs.next()) {
-            prevX = rs.getInt("pozX_jedn");
-            prevY = rs.getInt("pozY_jedn");
-            z.setPunktDocelowyPrzemieszczeniaX(prevX);
-            z.setPunktDocelowyPrzemieszczeniaY(prevY);
-            z.setTypZdarzenia(0);
-            con.close();
-            //return new Zdarzenie[] {z};
+          try{
+            int prevX;
+            int prevY;
+            Class.forName(driver).newInstance();
+            con = DriverManager.getConnection(url, username, password);
+            Statement s = con.createStatement();
+              
+            ResultSet rs = s.executeQuery("select * from sc_nasza_poprz_poz_strzelanie S " +
+                                          "where S.id_jednostki = '" + z.getIdJednostki()  + "'  " +
+                                          "and S.strona_konf = '" + z.getIdStronyKonfliktu()  + "' " );
+                   
+            if (rs.next()) {
+              prevX = rs.getInt("pozX_jedn");
+              prevY = rs.getInt("pozY_jedn");
+              z.setPunktDocelowyPrzemieszczeniaX(prevX);
+              z.setPunktDocelowyPrzemieszczeniaY(prevY);
+              z.setTypZdarzenia(0);
+              con.close();
+              //return new Zdarzenie[] {z};
+            }
+            return null;
           }
-          return null;
-        }
-        catch(Exception e)
-        {
-                 
-        }
-        break;
+          catch(Exception e)
+          {
+                   
+          }
+        //widzimy jednostke
+          try{
+              Class.forName(driver).newInstance();
+              con = DriverManager.getConnection(url, username, password);
+              
+              Statement s = con.createStatement();
+              ResultSet rs = s.executeQuery("insert into `scena`.`sc_jednostki_widoczne` " +
+              "(id_jednostki, id_jednostki_widz, id_scena)" +
+              "values" +
+              "('" + z.getIdJednostki()  + "', '" + z.getIdJednostkiRozpoznanej()  + "''" + z.getIdScenariuszaJednostkiRozpoznanej()  + "')");
+              con.close();
+              return null;
+          }
+          catch(Exception e)
+          {
+                   
+          }
+          break;
+        case 4: //nie widzimy jednostki
+            try{
+                Class.forName(driver).newInstance();
+                con = DriverManager.getConnection(url, username, password);
+                
+                Statement s = con.createStatement();
+                ResultSet rs = s.executeQuery("delete from `scena`.`sc_jednostki_widoczne` where  " +
+              "(id_jednostki='" + z.getIdJednostki()  + "' and id_jednostki_widz='" + z.getIdJednostkiRozpoznanej()  + "' and id_scena='" + z.getIdScenariuszaJednostkiRozpoznanej()  + "')");
+                con.close();
+                return null;
+            }
+            catch(Exception e)
+            {
+                     
+            }
+            break;
 // TODO zaimplementowac ponizszy case
       case 7://ODBIOR_DOSTAWY_START
       	return null;
@@ -857,8 +896,10 @@ public class JednostkaWs
       	return null; 
 // TODO zaimplementowac ponizszy case
       case 9://STRZAL_START
-    	  
-      	return null;
+
+
+          
+          return null;
 // TODO zaimplementowac ponizszy case
       case 10://STRZAL_STOP
       	return null; 
@@ -873,6 +914,7 @@ public class JednostkaWs
               s.executeUpdate("update sc_jednostki set " +
                   "czy_dziala = 'n' " +
                   "where id = '"+ z.getIdJednostki()+ "'");
+	          con.close();
               return null;
           }
           catch(Exception e)
@@ -910,6 +952,58 @@ public class JednostkaWs
     }
     return min;
    }
+  }
+  
+  private Zdarzenie[] strzelaj ( String scen, String jedn, String strona)
+  {
+	  try
+	  {
+	      Class.forName(driver).newInstance();
+	      con = DriverManager.getConnection(url, username, password);
+	      Statement s = con.createStatement();
+
+	      Zdarzenie[] events = new Zdarzenie[15];
+	      int czymStrzelono;
+	      int zasMin;
+          int zasMax;
+          int zasRef;
+          Zaopatrzenie czymStrzel = new Zaopatrzenie();
+	      
+	      // bron i jej zasieg
+	      ResultSet rs = s.executeQuery(
+	    		  "SELECT s.ZASIEG_MIN, s.ZASIEG_MAX, s.ZASIEG_REF, s.ID_UISW" +
+	    		  " FROM sc_slownik_uisw_parametry_so s, sc_uisw t" +
+	    		  " WHERE t.ID_SCENA = " + scen + 
+	    		  		" AND t.ID_JEDNOSTKI = " + jedn +
+	    		  		" AND s.ID_UISW = t.ID_UISW");    	  
+	      int x = 0;
+	      
+	      while (rs.next())
+	      {
+	            zasMin = rs.getInt("ZASIEG_MIN");
+	            zasMax = rs.getInt("ZASIEG_MAX");
+	            zasRef = rs.getInt("ZASIEG_REF");
+	            czymStrzelono = rs.getInt("ID_UISW");
+	            czymStrzel.setLiczbaSrodka(1000);
+	            czymStrzel.setNazwaSrodka(""+czymStrzelono);
+		     	   
+		     	//polozenie startowe jednostki w tym przypadku to ustawienie poczatkowe jednostki
+	            events[x].setIdJednostki(jedn);
+	            events[x].setIdStronyKonfliktu(strona);
+	            events[x].setMiejsceStrzluX(polBX);
+	            events[x].setMiejsceStrzluY(polBY);
+	            events[x].setTypZdarzenia(9);
+	            events[x].setCzymStrzelono(czymStrzel);
+	            x++;
+	      }
+          con.close();
+
+	      return events;
+	  }
+      catch(Exception e)
+      {
+               return null;
+      }
   }
 }
 
